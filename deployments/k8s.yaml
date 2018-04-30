@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mewa-k8s-deployment
+  labels:
+    app: mewa-k8s
+    type: k8s-master-app
+spec:
+  selector:
+    matchLabels:
+      type: k8s-master-app
+  template:
+    metadata:
+      labels:
+        type: k8s-master-app
+    spec:
+      containers:
+        - name: mewak8s
+          image: mewa/k8s
