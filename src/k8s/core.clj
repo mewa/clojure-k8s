@@ -70,7 +70,11 @@
         acc))))
 
 (defn run-handler [request]
-  (let [resp ((comp run slurp :body) request)]
+  (let [handler (fn [cmd] (run-k8s new-job cmd))
+        resp (-> request
+                 :body
+                 slurp
+                 handler)]
     {:status 200
      :content-type "application/json"
      :body (generate-string resp {:pretty true})}))
@@ -78,6 +82,14 @@
 (defn explode-query [q]
   (reduce #(apply assoc %1 %2) {}
        (map #(s/split % #"=") (s/split q #"&"))))
+
+(defn get-handler [request]
+  (if-let [id ((explode-query (:query-string request)) "id")]
+    (let [jobinfo (run-k8s get-job id)]
+      {:status 200
+       :body (generate-string jobinfo {:pretty true})})
+    {:status 400
+     :body "id query param is required"}))
 
 (defn route
   [handlers]
@@ -87,4 +99,5 @@
 
 (defn -main
   [& args]
-  (jetty/run-jetty (route {"/run" run-handler}) {:port 4000}))
+  (jetty/run-jetty (route {"/run" run-handler
+                           "/get" get-handler}) {:port 4000}))
