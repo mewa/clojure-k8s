@@ -22,7 +22,9 @@
          (catch Exception e {:error (or (ex-data e) e)}))))
 
 
-(defn new-job [cmd]
+(defn new-job
+  "Create job which executes CMD"
+  [cmd]
   (k8sbatch/create-batch-v1-namespaced-job
    "default"
    {:metadata {:name (str "k8s-job-" (serial))}
@@ -31,7 +33,10 @@
                                            :command ["sh" "-c" cmd]}]
                              :restartPolicy "Never"}}}}))
 
-(defn job-pods [id]
+(defn job-pods
+  "Get pods for job ID and return a channel with information about
+  each pod"
+  [id]
   (let [pods (chan)]
     (go
       (doseq
@@ -45,7 +50,10 @@
       (close! pods))
     pods))
 
-(defn pod-logs [pods]
+(defn pod-logs
+  "Get logs for each item in channel PODS and return a channel
+  with logs for each pod"
+  [pods]
   (let [logs (chan)]
     (go
       (loop [podinfo (<! pods)]
@@ -60,7 +68,9 @@
       (close! logs))
     logs))
 
-(defn get-job [id]
+(defn get-job
+  "Get information for job with given ID"
+  [id]
   (let [pods (job-pods id)
         logs (pod-logs pods)]
     (loop [log (<!! logs)
@@ -69,7 +79,9 @@
         (recur (<!! logs) (cons log acc))
         acc))))
 
-(defn run-handler [request]
+(defn run-handler
+  "Ring handler which parses REQUEST and starts a job"
+  [request]
   (let [handler (fn [cmd] (run-k8s new-job cmd))
         resp (-> request
                  :body
@@ -79,11 +91,15 @@
      :content-type "application/json"
      :body (generate-string resp {:pretty true})}))
 
-(defn explode-query [q]
+(defn explode-query
+  "Explode query string Q into a map"
+  [q]
   (reduce #(apply assoc %1 %2) {}
        (map #(s/split % #"=") (s/split q #"&"))))
 
-(defn get-handler [request]
+(defn get-handler
+  "Ring handler which parses REQUEST and returns job info"
+  [request]
   (if-let [id ((explode-query (:query-string request)) "id")]
     (let [jobinfo (run-k8s get-job id)]
       {:status 200
@@ -92,6 +108,9 @@
      :body "id query param is required"}))
 
 (defn route
+  "Given a map of HANDLERS, returns a Ring handler which matches
+  requst URIs on map keys and executes handlers associated with
+  those keys"
   [handlers]
   (fn [request] (if-let [handler (handlers (:uri request))]
                   (handler request)
