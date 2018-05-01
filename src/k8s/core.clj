@@ -1,27 +1,38 @@
 (ns k8s.core
   (:gen-class)
-  (:require [clojure.string :as s]
-            [kubernetes.core :as core]
+  (:require [kubernetes.core :as core]
             [kubernetes.api.core :as k8score]
             [kubernetes.api.batch-v- :as k8sbatch]
-            [kubernetes.api.apps-v-beta- :as k8sapps]))
+            [cheshire.core :refer :all]
+            [ring.adapter.jetty :as jetty]))
 
-(defn test-job []
+(defonce next-serial (atom -1))
+(defn serial []
+  (let [val (swap! next-serial inc)]
+    val))
+
+(def kube-config {:base-url "http://localhost:8001"})
+
+(defn run-job [cmd]
   (k8sbatch/create-batch-v1-namespaced-job
    "default"
-   {:metadata {:name "test-job"}
+   {:metadata {:name (str "k8s-job-" (serial))}
     :spec {:template {:spec {:containers [{:image "alpine"
-                                           :name "k8s-test"
-                                           :command ["echo" "success"]}]
+                                           :name "k8s-job"
+                                           :command ["sh" "-c" cmd]}]
                              :restartPolicy "Never"}}}}))
+
+(defn run [cmd]
+  (core/with-api-context kube-config
+    (try (run-job cmd)
+         (catch Exception e {:error (or (ex-data e) e)}))))
+
+(defn handler [request]
+  (let [resp ((comp run slurp :body) request)]
+    {:status 200
+     :content-type "application/json"
+     :body (generate-string resp {:pretty true})}))
 
 (defn -main
   [& args]
-  (core/with-api-context {:base-url "https://kubernetes.default.svc"
-                          :auths {"BearerToken" (slurp "/var/run/secrets/kubernetes.io/serviceaccount/token")}}
-    (println (try (job)
-                  (catch Exception e (println "Could not create job: "
-                                              (if-let [data (ex-data e)]
-                                                data
-                                                e)))))
-    (println "Done")))
+  (jetty/run-jetty handler {:port 4000}))
