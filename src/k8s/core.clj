@@ -1,6 +1,7 @@
 (ns k8s.core
   (:gen-class)
   (:require [kubernetes.core :as core]
+            [clojure.string :as s]
             [kubernetes.api.core :as k8score]
             [kubernetes.api.batch-v- :as k8sbatch]
             [cheshire.core :refer :all]
@@ -32,6 +33,10 @@
     {:status 200
      :content-type "application/json"
      :body (generate-string resp {:pretty true})}))
+
+(defn explode-query [q]
+  (reduce #(apply assoc %1 %2) {}
+       (map #(s/split % #"=") (s/split q #"&"))))
 
 (defn route
   [handlers]
