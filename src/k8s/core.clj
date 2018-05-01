@@ -27,12 +27,18 @@
     (try (run-job cmd)
          (catch Exception e {:error (or (ex-data e) e)}))))
 
-(defn handler [request]
+(defn run-handler [request]
   (let [resp ((comp run slurp :body) request)]
     {:status 200
      :content-type "application/json"
      :body (generate-string resp {:pretty true})}))
 
+(defn route
+  [handlers]
+  (fn [request] (if-let [handler (handlers (:uri request))]
+                  (handler request)
+                  {:status 404 :body "Not found"})))
+
 (defn -main
   [& args]
-  (jetty/run-jetty handler {:port 4000}))
+  (jetty/run-jetty (route {"/run" run-handler}) {:port 4000}))
