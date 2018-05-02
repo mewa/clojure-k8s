@@ -62,7 +62,6 @@
                  slurp
                  handler)]
     {:status 200
-     :content-type "application/json"
      :body (generate-string resp {:pretty true})}))
 
 (defn explode-query
@@ -87,7 +86,7 @@
   those keys"
   [handlers]
   (fn [request] (if-let [handler (handlers (:uri request))]
-                  (handler request)
+                  (into {:headers {"Content-Type""application/json"}} (handler request))
                   {:status 404 :body "Not found"})))
 
 (defn -main
