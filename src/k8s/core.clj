@@ -25,13 +25,15 @@
 (defn new-job
   "Create job which executes CMD"
   [cmd]
-  (k8sbatch/create-batch-v1-namespaced-job
-   "default"
-   {:metadata {:name (str "k8s-job-" (serial))}
-    :spec {:template {:spec {:containers [{:image "alpine"
-                                           :name "k8s-job"
-                                           :command ["sh" "-c" cmd]}]
-                             :restartPolicy "Never"}}}}))
+  (let [job-name (str "k8s-job-" (serial))]
+    (k8sbatch/create-batch-v1-namespaced-job
+     "default"
+     {:metadata {:name job-name}
+      :spec {:template {:spec {:containers [{:image "alpine"
+                                             :name "k8s-job"
+                                             :command ["sh" "-c" cmd]}]
+                               :restartPolicy "Never"}}}})
+    {:name job-name}))
 
 (defn job-pods
   "Get pods for job ID and return a channel with information about
