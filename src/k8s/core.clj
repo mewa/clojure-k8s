@@ -30,8 +30,7 @@
     {:name job-name}))
 
 (defn job-pods
-  "Get pods for job ID and return a channel with information about
-  each pod"
+  "Get pods for job ID and return a list of pod info"
   [id]
   (map (fn [v] {:name (get-in v [:metadata :name])
                 :status (get-in v [:status :phase])})
@@ -40,8 +39,7 @@
                 {:label-selector (str "job-name=" id)}))))
 
 (defn pod-logs
-  "Get logs for each item in channel PODS and return a channel
-  with logs for each pod"
+  "Get logs for pod described by PODINFO"
   [podinfo]
   (let [pod (:name podinfo)
         status (:status podinfo)]
