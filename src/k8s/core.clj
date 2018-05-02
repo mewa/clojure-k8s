@@ -1,7 +1,6 @@
 (ns k8s.core
   (:gen-class)
-  (:require [clojure.core.async :as async :refer [go chan close! <! >! <!! >!!]]
-            [clojure.string :as s]
+  (:require [clojure.string :as s]
             [kubernetes.core :as core]
             [kubernetes.api.core :as k8score]
             [kubernetes.api.batch-v- :as k8sbatch]
@@ -34,47 +33,27 @@
   "Get pods for job ID and return a channel with information about
   each pod"
   [id]
-  (let [pods (chan)]
-    (go
-      (doseq
-          [pod
-           (map (fn [v] {:name (get-in v [:metadata :name])
-                         :status (get-in v [:status :phase])})
-                (:items (k8scorev/list-core-v1-namespaced-pod
-                         "default"
-                         {:label-selector (str "job-name=" id)})))]
-        (>! pods pod))
-      (close! pods))
-    pods))
+  (map (fn [v] {:name (get-in v [:metadata :name])
+                :status (get-in v [:status :phase])})
+       (:items (k8scorev/list-core-v1-namespaced-pod
+                "default"
+                {:label-selector (str "job-name=" id)}))))
 
 (defn pod-logs
   "Get logs for each item in channel PODS and return a channel
   with logs for each pod"
-  [pods]
-  (let [logs (chan)]
-    (go
-      (loop [podinfo (<! pods)]
-        (when podinfo
-          (let [pod (:name podinfo)
-                status (:status podinfo)]
-            (>! logs
-                {:pod pod
-                 :status status
-                 :log (k8scorev/read-core-v1-namespaced-pod-log pod "default")})
-            (recur (<! pods)))))
-      (close! logs))
-    logs))
+  [podinfo]
+  (let [pod (:name podinfo)
+        status (:status podinfo)]
+    {:pod pod
+     :status status
+     :log (k8scorev/read-core-v1-namespaced-pod-log pod "default")}))
 
 (defn get-job
   "Get information for job with given ID"
   [id]
-  (let [pods (job-pods id)
-        logs (pod-logs pods)]
-    (loop [log (<!! logs)
-           acc nil]
-      (if log
-        (recur (<!! logs) (cons log acc))
-        acc))))
+  (let [pods (job-pods id)]
+    (doall (map pod-logs pods))))
 
 (defn run-handler
   "Ring handler which parses REQUEST and starts a job"
