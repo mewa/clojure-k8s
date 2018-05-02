@@ -9,11 +9,6 @@
             [cheshire.core :refer :all]
             [ring.adapter.jetty :as jetty]))
 
-(defonce next-serial (atom -1))
-(defn serial []
-  (let [val (swap! next-serial inc)]
-    val))
-
 (def kube-config {:base-url "http://localhost:8001"})
 
 (defn run-k8s [f & args]
@@ -25,7 +20,7 @@
 (defn new-job
   "Create job which executes CMD"
   [cmd]
-  (let [job-name (str "k8s-job-" (serial))]
+  (let [job-name (str "k8s-job-" (java.util.UUID/randomUUID))]
     (k8sbatch/create-batch-v1-namespaced-job
      "default"
      {:metadata {:name job-name}
